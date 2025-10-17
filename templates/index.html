@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📔 Shared Journal</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { 
+            color: white; 
+            text-align: center; 
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .card { 
+            background: white; 
+            border-radius: 16px; 
+            padding: 25px; 
+            margin-bottom: 25px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .card h2 { margin-bottom: 15px; color: #333; }
+        input, textarea { 
+            width: 100%; 
+            padding: 12px; 
+            border: 2px solid #e0e0e0; 
+            border-radius: 8px; 
+            font-size: 14px; 
+            margin-bottom: 12px;
+            font-family: inherit;
+        }
+        input:focus, textarea:focus { outline: none; border-color: #667eea; }
+        textarea { min-height: 120px; resize: vertical; }
+        button { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 15px; 
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        button:hover { transform: translateY(-2px); }
+        .btn-secondary { background: #6c757d; }
+        .btn-success { background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%); }
+        .entry { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+        .entry h3 { color: #333; margin-bottom: 8px; }
+        .meta { font-size: 13px; color: #6c757d; margin-bottom: 12px; }
+        .content { line-height: 1.6; color: #495057; margin-bottom: 12px; white-space: pre-wrap; }
+        .reactions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .react-btn { 
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .react-btn:hover { border-color: #667eea; transform: scale(1.05); }
+        .msg { padding: 12px; border-radius: 8px; margin-top: 12px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.6); 
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .modal-content { 
+            background: white; 
+            margin: 50px auto; 
+            padding: 30px; 
+            border-radius: 16px; 
+            max-width: 600px;
+            position: relative;
+        }
+        .close-btn { 
+            position: absolute; 
+            top: 15px; 
+            right: 20px; 
+            font-size: 30px; 
+            cursor: pointer; 
+            color: #6c757d;
+        }
+        .close-btn:hover { color: #000; }
+        .comment { background: #f1f3f4; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+        .comment .author { font-weight: bold; font-size: 13px; }
+        .comment .text { margin-top: 6px; }
+        .comment .time { font-size: 12px; color: #6c757d; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📔 Shared Journal</h1>
+        
+        <div class="card">
+            <h2>✍️ Write New Entry</h2>
+            <form id="entryForm">
+                <input type="text" id="author" placeholder="Your name" required>
+                <input type="text" id="title" placeholder="Entry title" required>
+                <textarea id="entry" placeholder="What's on your mind?" required></textarea>
+                <button type="submit">Publish Entry</button>
+                <button type="button" class="btn-secondary" onclick="document.getElementById('entryForm').reset()">Clear</button>
+            </form>
+            <div id="msg"></div>
+        </div>
+
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                <h2 style="margin:0">📖 Past Entries</h2>
+                <button class="btn-success" onclick="location.reload()">🔄 Refresh</button>
+            </div>
+            <div id="entries">
+                {% if entries|length == 0 %}
+                    <div style="text-align:center;padding:30px;color:#6c757d">No entries yet. Be the first to write! ✨</div>
+                {% else %}
+                    {% for entry in entries %}
+                    <div class="entry">
+                        <h3>{{ entry['title'] }}</h3>
+                        <div class="meta">By {{ entry['author'] }} • {{ entry['timestamp'][:19].replace('T', ' ') }}</div>
+                        <div class="content">{{ entry['entry'][:300] }}{% if entry['entry']|length > 300 %}...{% endif %}</div>
+                        <div class="reactions">
+                            <button class="react-btn" onclick="react('{{ entry['id'] }}', 'hearts')">❤️ {{ entry['hearts'] }}</button>
+                            <button class="react-btn" onclick="react('{{ entry['id'] }}', 'likes')">👍 {{ entry['likes'] }}</button>
+                            <button class="react-btn" onclick="openModal('{{ entry['id'] }}')">💬 View Full</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('entryForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const author = document.getElementById('author').value.trim();
+            const title = document.getElementById('title').value.trim();
+            const entry = document.getElementById('entry').value.trim();
+            
+            document.getElementById('msg').innerHTML = '<div class="msg">Publishing...</div>';
+            
+            try {
+                const response = await fetch('/add_entry', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({author, title, entry})
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('msg').innerHTML = '<div class="msg success">✓ Published! Refreshing...</div>';
+                    setTimeout(() => location.reload(), 1500);
+                }
+            } catch (error) {
+                document.getElementById('msg').innerHTML = '<div class="msg error">Error: ' + error.message + '</div>';
+            }
+        });
+
+        async function react(entryId, type) {
+            try {
+                await fetch(`/react/${entryId}/${type}`, {method: 'POST'});
+                location.reload();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function openModal(entryId) {
+            try {
+                const response = await fetch('/get_entries');
+                const entries = await response.json();
+                const entry = entries.find(e => e.id === entryId);
+                
+                if (!entry) return;
+                
+                let html = `<h2>${escapeHtml(entry.title)}</h2>`;
+                html += `<div class="meta">By ${escapeHtml(entry.author)} • ${entry.timestamp.slice(0,19).replace('T', ' ')}</div>`;
+                html += `<div class="content" style="margin:20px 0">${escapeHtml(entry.entry)}</div>`;
+                html += `<div class="reactions" style="margin-bottom:20px">`;
+                html += `<button class="react-btn" onclick="react('${entry.id}', 'hearts')">❤️ ${entry.hearts}</button>`;
+                html += `<button class="react-btn" onclick="react('${entry.id}', 'likes')">👍 ${entry.likes}</button>`;
+                html += `</div><hr style="border:none;border-top:1px solid #e0e0e0;margin:20px 0">`;
+                html += `<h3>💬 Comments</h3>`;
+                html += `<div id="commentsList">Loading...</div>`;
+                html += `<div style="margin-top:20px;background:#f8f9fa;padding:15px;border-radius:8px">`;
+                html += `<input type="text" id="cAuthor" placeholder="Your name">`;
+                html += `<textarea id="cText" rows="3" placeholder="Write a comment..."></textarea>`;
+                html += `<button onclick="submitComment('${entry.id}')">Post Comment</button>`;
+                html += `<div id="cMsg"></div></div>`;
+                
+                document.getElementById('modalBody').innerHTML = html;
+                document.getElementById('modal').style.display = 'block';
+                loadComments(entryId);
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        async function loadComments(entryId) {
+            try {
+                const response = await fetch(`/get_comments/${entryId}`);
+                const comments = await response.json();
+                
+                if (comments.length === 0) {
+                    document.getElementById('commentsList').innerHTML = '<div style="padding:10px;color:#6c757d">No comments yet.</div>';
+                    return;
+                }
+                
+                let html = '';
+                comments.forEach(c => {
+                    html += `<div class="comment">`;
+                    html += `<div class="author">${escapeHtml(c.author)}</div>`;
+                    html += `<div class="text">${escapeHtml(c.comment)}</div>`;
+                    html += `<div class="time">${c.timestamp.slice(0,19).replace('T', ' ')}</div>`;
+                    html += `</div>`;
+                });
+                
+                document.getElementById('commentsList').innerHTML = html;
+            } catch (error) {
+                document.getElementById('commentsList').innerHTML = '<div class="msg error">Error loading comments</div>';
+            }
+        }
+
+        async function submitComment(entryId) {
+            const author = document.getElementById('cAuthor').value.trim();
+            const comment = document.getElementById('cText').value.trim();
+            
+            if (!author || !comment) {
+                document.getElementById('cMsg').innerHTML = '<div class="msg error">Please enter name and comment</div>';
+                return;
+            }
+            
+            document.getElementById('cMsg').innerHTML = '<div class="msg">Posting...</div>';
+            
+            try {
+                const response = await fetch('/add_comment', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({entry_id: entryId, author, comment})
+                });
+                
+                if (response.ok) {
+                    document.getElementById('cMsg').innerHTML = '<div class="msg success">✓ Posted!</div>';
+                    document.getElementById('cText').value = '';
+                    setTimeout(() => {
+                        document.getElementById('cMsg').innerHTML = '';
+                        loadComments(entryId);
+                    }, 1000);
+                }
+            } catch (error) {
+                document.getElementById('cMsg').innerHTML = '<div class="msg error">Error: ' + error.message + '</div>';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('modal')) {
+                closeModal();
+            }
+        };
+    </script>
+</body>
+</html>
